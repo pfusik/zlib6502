@@ -1,8 +1,8 @@
 zpage	equ	$f0	; 11 bytes
-inflate equ	$b600
+inflate equ	$8000
 
 * 'Inflate'
-; Written by Piotr Fusik (a.k.a. Fox/Taquart)
+; Written by Piotr Fusik
 ; Purpose: to uncompress Deflate format compressed data on 6502-based system.
 
 * const
@@ -139,7 +139,7 @@ inflateDynamicBlock
 	jsr	getBits
 	sta	inflateDynamicBlock_cnt
 ; Get lengths of temporary codes in order stored in tempCodeLengthOrder
-	lda:tay	#0
+	txa:tay	#0
 inflateDynamicBlock_1
 	ldx	#3		; A = 0
 	jsr	getBits		; does not change Y
@@ -307,7 +307,7 @@ getNextLength
 	jsr	getBits
 	cpy	#17
 	tay
-	lda	#0
+	txa	#0
 	bcs	getNextLength_2
 getNextLength_1
 	lda	getNextLength_last
