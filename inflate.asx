@@ -1,0 +1,416 @@
+* 'Inflate' lib
+; Written by Piotr Fusik (a.k.a. Fox/Taquart)
+; Purpose: to uncompress Deflate format compressed data on 6502-based system.
+; Source in X-Assembler's format (www.6502.org/users/fox/xasm)
+
+* const
+; Maximum length of a Huffman code
+MAX_BITS	equ	15
+; Index in bitsCount, bitsPointer_l and bitsPointer_h for literal tree
+LITERAL_TREE	equ	0
+; Index in bitsCount, bitsPointer_l and bitsPointer_h for distance tree
+DISTANCE_TREE	equ	MAX_BITS
+; Size of each of bitsCount, bitsPointer_l and bitsPointer_h
+TREES_SIZE	equ	2*MAX_BITS+1
+
+* page zero
+		org	zpage
+; (public) Pointer to compressed data
+inputPointer	org	*+2
+; (public) Pointer to uncompressed data
+outputPointer	org	*+2
+; Buffer for getBit
+getBitHold	org	*+1
+; Local variables. Variables from different routines use same memory.
+cnt		org	*+1
+tmp		equ	*	; 1 byte
+ptr		org	*+2
+len		equ	*	; 2 bytes
+nl		org	*+1
+nd		org	*+1
+src		equ	*	; 2 bytes
+dest		org	*+2
+
+* code
+	org	inflate
+* (public) inflate
+; Decompresses Deflate data pointed by inputPointer
+; to memory at outputPointer
+	mvy	#1	getBitHold
+; Get a bit of EOF and two bits of block type
+extr1	ldx	#3
+	lda	#0
+	jsr	getBits
+	lsr	@
+	tax
+; X contains block type, C contains EOF flag
+	bcs	extr2
+; If not last block, put return address to extr1
+	lda:pha	>extr1-1
+	lda:pha	<extr1-1
+; Go to routine decompressing this block
+extr2	lda:pha	extr_h,x
+	lda:pha	extr_l,x
+	rts
+
+* inflateCopyBlock
+; Decompresses 'stored' data block
+inflateCopyBlock
+; Ignore bits until byte boundary
+	mvy	#1	getBitHold
+; Get 16-bit length
+	mva	(inputPointer),y-	len+1
+	mva	(inputPointer),y	len
+; Skip length and one's compliment length
+	lda	#4
+	add:sta	inputPointer
+	scc:inc	inputPointer+1
+	ldx	#inputPointer
+
+* moveBlock
+; Copies block of length len from (0,x) to output
+moveBlock
+	ldy	len
+	beq	mov1
+	ldy	#0
+	inc	len+1
+mov1	mva	(0,x)	(outputPointer),y
+	inw	0,x
+	inw	outputPointer
+	dec	len
+	bne	mov1
+	dec	len+1
+	bne	mov1
+	rts
+
+* inflateFixedBlock
+; Decompresses Huffman-coded data block with default Huffman trees:
+; literalCodeLength	:144	dta 8
+;			:112	dta 9
+; endCodeLength		:24	dta 7
+;			:6	dta 8
+; distanceCodeLength	:30	dta 5
+;			:2	dta 8 ; codes from literal tree, not used
+inflateFixedBlock
+	ldx	#159
+	stx	distanceCodeLength+32
+	lda	#8
+fixd1	sta	literalCodeLength-1,x
+	sta	literalCodeLength+159-1,x-
+	bne	fixd1
+	ldx	#112
+	lda	#9
+	sta:rne	literalCodeLength+144-1,x-
+	ldx	#24
+	lda	#7
+	sta:rne	endCodeLength-1,x-
+	ldx	#30
+	lda	#5+DISTANCE_TREE
+	sta:rne	distanceCodeLength-1,x-
+	jmp	inflateCodes
+
+* inflateDynamicBlock
+; Decompresses Huffman-coded data block, reading Huffman trees first
+inflateDynamicBlock
+; numberOfLiteralCodes = getBits(5) + 257;
+	ldx	#5
+	lda	<lengthCodeLength-1
+	jsr	getBits
+	sta	nl
+; numberOfDistanceCodes = getBits(5) + 1;
+	ldx	#5
+	lda	#1
+	jsr	getBits
+	sta	nd
+	add:sta	nl
+; numberOfTemporaryCodes = getBits(4) + 4;
+	lda:tax	#4
+	jsr	getBits
+	sta	cnt
+; Clear lengths of temporary codes (there're 19 temp codes max),
+; clear literalCodeLength-1 (it may be used by temporary code 16)
+; and leave #0 in Y
+	ldy	#20
+	lda	#0
+	sta:rne	literalCodeLength-2,y-
+; Get lengths of temporary codes in order stored in bll
+dyn1	ldx	#3
+	lda	#0
+; Doesn't change Y
+	jsr	getBits
+	ldx	bll,y
+	sta	literalCodeLength,x
+	iny
+	cpy	cnt
+	bcc	dyn1
+	ror	literalCodeLength+19	+
+; Build tree for temporary codes
+	jsr	buildHuffmanTree
+
+; Use temporary codes to get lengths for literal and distance codes
+; dest is target-1, so we can access last written byte by (dest,0)
+	lda	<literalCodeLength-1
+	ldy	>literalCodeLength-1
+dyf1	sta	dest
+	sty	dest+1
+	jsr	fetchLiteralCode
+; Temporary code 0..15: put this length
+	ldy	#1
+	cmp	#16
+	bcc	dynst
+	bne	dif1
+; Temporary code 16: repeat last length 3..6 times
+	ldx	#2
+	lda	#3
+	jsr	getBits
+	tay
+	lda	(dest,x)	; (dest,0)
+	jmp	dynst
+dif1	lsr	@
+; Temporary code 17: put zero length 3..10 times
+	lda:tax	#3
+	bcs	dynst0
+; Temporary code 18: put zero length 11..138 times
+	ldx	#7
+	lda	#11
+dynst0	jsr	getBits
+	tay
+	lda	#0
+; Write A length Y times
+dynst	sty	cnt
+	sta:rne	(dest),y-
+	lda	dest
+	ldy	dest+1
+	add	cnt
+	scc:iny
+	cpy	>literalCodeLength
+	beq	dyf1
+	cmp	nl
+	bne	dyf1
+; Mark end of distance lengths
+	ldx	nd
+	tay
+	ror	distanceCodeLength,x	+
+; Move distance lengths to distanceCodeLength table
+dadt	dex
+	lda	endCodeLength,y
+; Mark existing codes (of non-zero length) as distance tree codes
+	seq:add	#DISTANCE_TREE
+	sta	distanceCodeLength,x
+	mva	#0	endCodeLength,y-
+	txa
+	bne	dadt
+
+* inflateCodes
+; Decompresses data block basing on given Huffman trees
+inflateCodes
+	jsr	buildHuffmanTree
+codes1	jsr	fetchLiteralCode
+	bcs	codes2
+; Literal code
+	sta	(outputPointer),0
+	inw	outputPointer
+	jmp	codes1
+; End of block
+codret	rts
+codes2	beq	codret
+; Repeat block
+	jsr	getValue
+	sta	len
+	tya
+	jsr	getBits
+	sta	len+1
+	ldx	#DISTANCE_TREE
+	jsr	fetchCode
+	jsr	getValue
+	sta	src
+	tya
+	jsr	getBits
+	sta	src+1
+	lda	outputPointer
+	sub	src
+	sta	src
+	lda	outputPointer+1
+	sbc	src+1
+	sta	src+1
+	ldx	#src
+	jsr	moveBlock
+	jmp	codes1
+
+* buildHuffmanTree
+; Builds Huffman trees basing on code lengths.
+; Lengths (in bits) are stored in literalCodeLength.
+; A byte with highest bit set marks end of length table.
+buildHuffmanTree
+	mva	<literalCodeLength	tr2+1
+	sta	tr6+1
+	mva	>literalCodeLength	tr2+2
+	sta	tr6+2
+; Clear counts
+	ldx	#TREES_SIZE-1
+	lda	#0
+	sta:rpl	bitsCount,x-
+	bmi	tr2	!
+; Count number of codes of each length
+tr1	inc	bitsCount,x
+	inw	tr2+1
+tr2	ldx	a:0
+	bpl	tr1
+; Calculate pointer for each length
+	tax	#0
+	stx	bitsCount
+	lda	<sortedCodes
+	ldy	>sortedCodes
+tr3	sta	bitsPointer_l,x
+	tya:sta	bitsPointer_h,x
+	lda	bitsCount,x
+	asl	@
+	scc:iny
+	add	bitsPointer_l,x
+	scc:iny
+	inx
+	cpx	#TREES_SIZE
+	bcc	tr3
+	bcs	tr6	!
+; Put codes into their place in sorted table
+tr4	beq	tr5
+	mva	bitsPointer_l,x	ptr
+	add	#2
+	sta	bitsPointer_l,x
+	mva	bitsPointer_h,x	ptr+1
+	adc	#0
+	sta	bitsPointer_h,x
+	mva	tr6+2	(ptr),0+
+	mva	tr6+1	(ptr),y
+tr5	inw	tr6+1
+tr6	ldx	a:0
+	bpl	tr4
+	rts
+
+* fetchLiteralCode
+; Reads code basing on literal tree
+fetchLiteralCode
+	ldx	#LITERAL_TREE
+
+* fetchCode
+; Reads code from input stream basing on tree given in X.
+; Returns code in A, C is set if non-literal code.
+fetchCode
+	lda	#0
+fcode1	jsr	getBit
+	rol	@
+	cmp	bitsCount+1,x
+	bcc	fcode2
+	sbc	bitsCount+1,x
+	inx
+	bcs	fcode1	!
+fcode2	mvy	bitsPointer_l,x	ptr
+	ldy	bitsPointer_h,x
+	asl	@
+	scc:iny
+	sty	ptr+1
+	tay
+	lda	(ptr),y+
+	cmp	>endCodeLength
+	lda	(ptr),y
+	rts
+
+* getValue
+; Reads low byte of value (length or distance), basing on code A
+getValue
+	tay
+	ldx	lengthExtraBits-<lengthCodeLength,y
+	lda:pha	lengthCode_l-<lengthCodeLength,y
+	lda:tay	lengthCode_h-<lengthCodeLength,y
+	pla
+
+* getBits
+; Reads X-bit number from input stream and adds it to A.
+; In case of carry, Y is incremented.
+; If X > 8, only 8 bits are read.
+; On return X holds number of unread bits: X = (X > 8 ? X - 8 : 0);
+getBits
+	cpx	#0
+	beq	gbitsr
+	pha
+	mva	#1	tmp
+	pla
+gbits1	jsr	getBit
+	bcc	gbits2
+	add	tmp
+	scc:iny
+gbits2	dex:beq	gbitsr
+	asl	tmp
+	bcc	gbits1
+gbitsr	rts
+
+* getBit
+; Reads single bit from input stream, returns it in C flag
+getBit
+	lsr	getBitHold
+	bne	gbitr
+	pha
+	tya:pha
+	lda	(inputPointer),0
+	inw	inputPointer
+	ror	@	+
+	sta	getBitHold
+	pla:tay
+	pla
+gbitr	rts
+
+* Addresses of functions extracting different blocks
+extr_l	dta	l(inflateCopyBlock-1,inflateFixedBlock-1,inflateDynamicBlock-1)
+extr_h	dta	h(inflateCopyBlock-1,inflateFixedBlock-1,inflateDynamicBlock-1)
+
+* Order, in which lengths of temporary codes are stored
+bll	dta	b(16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15)
+
+* Tables for length and distance codes
+; Value is Code + getBits(ExtraBits)
+; Base values
+lengthCode_l
+	dta	l(3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43)
+	dta	l(51,59,67,83,99,115,131,163,195,227,258)
+distanceCode_l
+	dta	l(1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385)
+	dta	l(513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577)
+lengthCode_h
+	dta	h(3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43)
+	dta	h(51,59,67,83,99,115,131,163,195,227,258)
+distanceCode_h
+	dta	h(1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385)
+	dta	h(513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577)
+; Number of extra bits to read
+lengthExtraBits
+	dta	b(0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4)
+	dta	b(4,4,5,5,5,5,0)
+distanceExtraBits
+	dta	b(0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10)
+	dta	b(11,11,12,12,13,13)
+
+			org	inflate+$400
+* Data for building literal tree
+; Must begin at page boundary!
+			ert	<*
+; Length of literal codes
+literalCodeLength	org	*+256
+; Length of 'end' code
+endCodeLength		org	*+1
+; Length of 'length' codes
+lengthCodeLength	org	*+29
+* Data for building distance tree
+distanceCodeLength	org	*+30
+; For two unused codes in fixed trees and a end flag
+			org	*+3
+
+* Huffman tree structure
+; Number of codes of each length
+bitsCount		org	*+TREES_SIZE
+; Pointer to sorted codes of each length
+bitsPointer_l		org	*+TREES_SIZE
+bitsPointer_h		org	*+TREES_SIZE
+; Sorted codes
+sortedCodes		org	*+2*[256+1+29+30+2]
+
+	end
