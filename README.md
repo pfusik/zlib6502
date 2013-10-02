@@ -4,7 +4,7 @@
 [DEFLATE](http://en.wikipedia.org/wiki/DEFLATE) is a popular compression format,
 used in ZIP, gzip, PNG and many other formats.
 
-In 2001 I wrote a DEFLATE decompression routine (called "inflate")
+In 2000 I wrote a DEFLATE decompression routine (called "inflate")
 in the [6502](http://en.wikipedia.org/wiki/6502) assembly language.
 In 2007 I optimized it so it is about 30% shorter and 10% faster than before.
 
@@ -19,7 +19,9 @@ The routine uses three memory areas:
 
 You must select these locations at compile time, for example:
 
-    xasm -d inflate="$b700" -d inflate_data="$b900" -d inflate_zp="$f0" inflate.asx
+    xasm -d inflate=$b700 -d inflate_data=$b900 -d inflate_zp=$f0 inflate.asx
+
+(escape the dollars if in Unix shell or Makefile).
 
 Source code uses [xasm](https://github.com/pfusik/xasm) syntax.
 This cross-assembler includes many original syntax extensions.
@@ -41,7 +43,7 @@ uncompressed can be stored in place of some compressed data which has been
 already read.
 
 It is also possible to get the compressed data from any forward-only stream.
-In this case, modify the `getBit` routine to look like this:
+In this case, modify the `getBit` routine to use your `readByte`:
 
     getBit
         lsr getBit_buffer
@@ -99,7 +101,7 @@ License
 
 This code is licensed under the standard zlib license.
 
-Copyright (C) 2001-2013 Piotr Fusik
+Copyright (C) 2000-2013 Piotr Fusik
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
