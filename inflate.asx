@@ -4,7 +4,7 @@
 
 ; Compile with xasm (http://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
-; inflate is 504 bytes of code and constants
+; inflate is 502 bytes of code and constants
 ; inflate_data is 764 bytes of uninitialized data
 ; inflate_zp is 10 bytes on page zero
 
@@ -133,7 +133,7 @@ inflateFixedBlock_noControlSymbol
 	jsr	buildTempHuffmanTree
 
 ; Use temporary codes to get lengths of literal/length and distance codes
-	ldx	#0
+;	ldx	#0
 ;	sec
 inflateDynamicBlock_decodeLength
 	php
