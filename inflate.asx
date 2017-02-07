@@ -4,7 +4,7 @@
 
 ; Compile with xasm (http://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
-; inflate is 502 bytes of code and constants
+; inflate is 501 bytes of code and constants
 ; inflate_data is 764 bytes of uninitialized data
 ; inflate_zp is 10 bytes on page zero
 
@@ -69,7 +69,6 @@ inflate_blockLoop
 	jsr	getBits
 	lsr	@
 	php
-	tax
 	bne	inflateCompressed
 
 ; Copy uncompressed block
@@ -82,9 +81,7 @@ inflate_blockLoop
 	bcs	inflateStored_firstByte
 inflateStored_copyByte
 	jsr	getByte
-inflateStoreByte
 	jsr	storeByte
-	bcc	inflateCodes_loop
 inflateStored_firstByte
 	inx
 	bne	inflateStored_copyByte
@@ -97,35 +94,42 @@ inflate_nextBlock
 	rts
 
 inflateCompressed
+; A=1: fixed block, initialize with fixed codes
+; A=2: dynamic block, start by clearing all code length
+; A=3: invalid compressed data, not handled here
+	eor	#2
 
-; Decompress a block with fixed Huffman trees:
+;	ldy	#0
+inflateCompressed_setCodeLengths
+	tax
+	beq	inflateCompressed_setLiteralCodeLength
+; fixed Huffman literal codes:
 ; :144 dta 8
 ; :112 dta 9
-; :24  dta 7
-; :6   dta 8
-; :2   dta 8 ; codes with no meaning
-; :30  dta 5+DISTANCE_TREE
-;	ldy	#0
-inflateFixed_setCodeLengths
 	lda	#4
 	cpy	#144
 	rol	@
+inflateCompressed_setLiteralCodeLength
 	sta	literalSymbolCodeLength,y
-	cpy	#CONTROL_SYMBOLS
-	bcs	inflateFixed_noControlSymbol
+	beq	inflateCompressed_setControlCodeLength
+; fixed Huffman control codes:
+; :24  dta 7
+; :6   dta 8
+; :2   dta 8 ; meaningless codes
+; :30  dta 5+DISTANCE_TREE
 	lda	#5+DISTANCE_TREE
 	cpy	#LENGTH_SYMBOLS
-	bcs	inflateFixed_setControlCodeLength
+	bcs	inflateCompressed_setControlCodeLength
 	cpy	#24
 	adc	#2-DISTANCE_TREE
-inflateFixed_setControlCodeLength
-	sta	controlSymbolCodeLength,y
-inflateFixed_noControlSymbol
+inflateCompressed_setControlCodeLength
+	cpy	#CONTROL_SYMBOLS
+	scs:sta	controlSymbolCodeLength,y
 	iny
-	bne	inflateFixed_setCodeLengths
+	bne	inflateCompressed_setCodeLengths
 
-	dex
-	beq	inflateCodes
+	tax
+	bne	inflateCodes
 
 ; Decompress a block reading Huffman trees first
 
@@ -173,7 +177,7 @@ inflateDynamic_controlSymbolCodeLength
 	cpx	inflateDynamic_primaryCodes
 	bcc	inflateDynamic_storeControl
 ; the code lengths we skip here were zero-initialized
-; in inflateDynamic_clearCodeLengths
+; in inflateCompressed_setControlCodeLength
 	sne:ldx	#LENGTH_SYMBOLS
 	ora	#DISTANCE_TREE
 inflateDynamic_storeControl
@@ -187,9 +191,13 @@ inflateDynamic_storeControl
 ; Decompress a block
 inflateCodes
 	jsr	buildHuffmanTree
+;	jmp	inflateCodes_loop
+	beq	inflateCodes_loop
+inflateCodes_literal
+	jsr	storeByte
 inflateCodes_loop
 	jsr	fetchPrimaryCode
-	bcc	inflateStoreByte
+	bcc	inflateCodes_literal
 	beq	inflate_nextBlock
 ; Copy sequence from look-behind buffer
 ;	ldy	#0
@@ -244,12 +252,6 @@ inflateCodes_copyByte
 
 buildTempHuffmanTree
 ;	ldy	#0
-	tya
-inflateDynamic_clearCodeLengths
-	sta	literalSymbolCodeLength,y
-	sta	literalSymbolCodeLength+TOTAL_SYMBOLS-256,y
-	iny
-	bne	inflateDynamic_clearCodeLengths
 ; numberOfPrimaryCodes = 257 + getBits(5)
 ; numberOfDistanceCodes = 1 + getBits(5)
 ; numberOfTemporaryCodes = 4 + getBits(4)
