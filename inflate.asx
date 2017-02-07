@@ -1,10 +1,10 @@
 ; inflate - uncompress data stored in the DEFLATE format
 ; by Piotr Fusik <fox@scene.pl>
-; Last modified: 2007-06-17
+; Last modified: 2017-02-07
 
 ; Compile with xasm (http://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
-; inflate is 509 bytes of code and initialized data
+; inflate is 508 bytes of code and initialized data
 ; inflate_data is 764 bytes of uninitialized data
 ; inflate_zp is 10 bytes on page zero
 
@@ -349,9 +349,10 @@ fetchCode_nextBit
 	clc
 	rts
 fetchCode_control
-	add	nBitCode_controlOffset-1,x
+;	sec
+	adc	nBitCode_controlOffset-1,x
 	tax
-	lda	codeToControlSymbol,x
+	lda	codeToControlSymbol-1,x
 	sec
 	rts
 
@@ -405,6 +406,7 @@ copyByte
 	ldy	#0
 ; Write a byte
 storeByte
+;	ldy	#0
 	sta	(outputPointer),y
 	inc	outputPointer
 	bne	storeByte_return
