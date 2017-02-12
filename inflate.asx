@@ -1,10 +1,10 @@
 ; inflate - uncompress data stored in the DEFLATE format
 ; by Piotr Fusik <fox@scene.pl>
-; Last modified: 2017-02-07
+; Last modified: 2017-02-12
 
 ; Compile with xasm (http://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
-; inflate is 501 bytes of code and constants
+; inflate is 499 bytes of code and constants
 ; inflate_data is 764 bytes of uninitialized data
 ; inflate_zp is 10 bytes on page zero
 
@@ -42,11 +42,8 @@ GET_5_BITS                      equ	$90
 GET_6_BITS                      equ	$a0
 GET_7_BITS                      equ	$c0
 
-; Maximum length of a Huffman code
-MAX_CODE_LENGTH                 equ	15
-
 ; Huffman trees
-TREE_SIZE                       equ	MAX_CODE_LENGTH+1
+TREE_SIZE                       equ	16
 PRIMARY_TREE                    equ	0
 DISTANCE_TREE                   equ	TREE_SIZE
 
@@ -54,7 +51,6 @@ DISTANCE_TREE                   equ	TREE_SIZE
 LENGTH_SYMBOLS                  equ	1+29+2
 DISTANCE_SYMBOLS                equ	30
 CONTROL_SYMBOLS                 equ	LENGTH_SYMBOLS+DISTANCE_SYMBOLS
-TOTAL_SYMBOLS                   equ	256+CONTROL_SYMBOLS
 
 
 ; Uncompress DEFLATE stream starting from the address stored in inputPointer
@@ -73,9 +69,9 @@ inflate_blockLoop
 
 ; Copy uncompressed block
 ;	ldy	#0
-	sty	getBit_buffer
-	jsr	getWord
-	jsr	getWord
+	sty	getBit_buffer  ; ignore bits until byte boundary
+	jsr	getWord        ; skip the length we don't need
+	jsr	getWord        ; get the two's complement length
 	sta	inflateStored_pageCounter
 ;	jmp	inflateStored_firstByte
 	bcs	inflateStored_firstByte
@@ -95,8 +91,8 @@ inflate_nextBlock
 
 inflateCompressed
 ; A=1: fixed block, initialize with fixed codes
-; A=2: dynamic block, start by clearing all code length
-; A=3: invalid compressed data, not handled here
+; A=2: dynamic block, start by clearing all code lengths
+; A=3: invalid compressed data, not handled in this routine
 	eor	#2
 
 ;	ldy	#0
@@ -140,8 +136,10 @@ inflateCompressed_setControlCodeLength
 ;	ldx	#0
 ;	sec
 inflateDynamic_decodeLength
-	php
+; C=1: literal codes
+; C=0: control codes
 	stx	inflateDynamic_symbol
+	php
 ; Fetch a temporary code
 	jsr	fetchPrimaryCode
 ; Temporary code 0..15: put this length
@@ -151,18 +149,19 @@ inflateDynamic_decodeLength
 ; Temporary code 18: put zero length 11 + getBits(7) times
 	tax
 	jsr	getBits
-;	sec
-	adc	#1
-	cpx	#GET_7_BITS
-	scc:adc	#7
-	tay
-	lda	#0
 	cpx	#GET_3_BITS
-	scs:lda	inflateDynamic_lastLength
+	bcc	inflateDynamic_repeatLast
+	seq:adc	#7
+;	ldy	#0
+	sty	inflateDynamic_lastLength
+inflateDynamic_repeatLast
+	tay
+	lda	inflateDynamic_lastLength
+	iny:iny
 inflateDynamic_verbatimLength
 	iny
-	ldx	inflateDynamic_symbol
 	plp
+	ldx	inflateDynamic_symbol
 inflateDynamic_storeLength
 	bcc	inflateDynamic_controlSymbolCodeLength
 	sta	literalSymbolCodeLength,x+
@@ -186,7 +185,6 @@ inflateDynamic_storeControl
 	bcc	inflateDynamic_storeNext
 	dey
 ;	ldy	#0
-;	jmp	inflateCodes
 
 ; Decompress a block
 inflateCodes
@@ -250,6 +248,7 @@ inflateCodes_copyByte
 ;	jmp	inflateCodes_loop
 	beq	inflateCodes_loop
 
+; Get dynamic block header and use it to build the temporary tree
 buildTempHuffmanTree
 ;	ldy	#0
 ; numberOfPrimaryCodes = 257 + getBits(5)
@@ -328,7 +327,7 @@ buildHuffmanTree_noControlSymbol2
 ; Read Huffman code using the primary tree
 fetchPrimaryCode
 	ldx	#PRIMARY_TREE
-; Read a code from input basing on the tree specified in X,
+; Read a code from input using the tree specified in X,
 ; return low byte of this code in A,
 ; return C flag reset for literal code, set for length code
 fetchCode
