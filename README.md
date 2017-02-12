@@ -63,27 +63,21 @@ Compression
 -----------
 
 There are several ways to get DEFLATE compressed data.
-Originally I wrote a command-line utility called `deflater`
-which used the standard [zlib library](http://www.zlib.net/).
-However, better compression can be obtained with [7-Zip](http://7-zip.org/).
-It supports the gzip format which is a thin layer on top of DEFLATE.
-My program `gzip2deflate` extracts the DEFLATE stream from a gzip file.
-It reads gzip on its standard input and writes DEFLATE to its standard output.
-I recommend using it this way:
 
-    7z a -tgzip -mx=9 -so dummy INPUT_FILE | gzip2deflate >OUTPUT_FILE.dfl
+If you are looking for maximum compression, use [Zopfli](https://github.com/google/zopfli).
+For example:
 
-If you don't have 7-Zip, use:
+    zopfli --deflate INPUT_FILE
 
-    gzip -c -9 INPUT_FILE | gzip2deflate >OUTPUT_FILE.dfl
+will compress to `INPUT_FILE.deflate`.
+I have compiled a [Windows exe](http://pfusik.github.io/zlib6502/zopfli.exe.gz) for you.
 
-If you are looking for maximum compression, [KZIP](http://advsys.net/ken/utils.htm)
-is also worth a try. It creates ZIP files, so I wrote `zip2deflate` to extract
-DEFLATE data from a ZIP.
+Historically, I have used:
 
-Windows binaries of `gzip2deflate` and `zip2deflate` are
-[available for download](http://pfusik.github.io/zlib6502/2deflate.zip).
-For other platforms, you will need to compile these programs yourself.
+* my programs using the [Deflater](http://docs.oracle.com/javase/8/docs/api/java/util/zip/Deflater.html) Java class
+* my `deflater` program written with the [zlib library](http://www.zlib.net/).
+* my `gzip2deflate` program that extracted the DEFLATE stream from a GZ file created with gzip or [7-Zip](http://7-zip.org/)
+* my `zip2deflate` program that extracted the DEFLATE stream from a ZIP created with [KZIP](http://advsys.net/ken/utils.htm)
 
 zlib?
 -----
@@ -92,8 +86,7 @@ This project is named zlib6502, but only supports DEFLATE decompression.
 Someday I'm going to include more functions, including compression.
 
 Meanwhile, you may look at [cc65](https://github.com/cc65/cc65) `zlib.h`.
-This is my old code, which includes an old version of `inflate`
-plus zlib-compatible `uncompress`, `adler32` and `crc32`.
+In addition to `inflate`, it supports zlib-compatible `uncompress`, `adler32` and `crc32`.
 
 License
 -------
