@@ -1,6 +1,6 @@
 ; inflate - uncompress data stored in the DEFLATE format
 ; by Piotr Fusik <fox@scene.pl>
-; Last modified: 2017-02-12
+; Last modified: 2017-11-06
 
 ; Compile with xasm (http://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
@@ -71,7 +71,7 @@ inflate_blockLoop
 ;	ldy	#0
 	sty	getBit_buffer  ; ignore bits until byte boundary
 	jsr	getWord        ; skip the length we don't need
-	jsr	getWord        ; get the two's complement length
+	jsr	getWord        ; get the one's complement length
 	sta	inflateStored_pageCounter
 ;	jmp	inflateStored_firstByte
 	bcs	inflateStored_firstByte
