@@ -4,7 +4,7 @@
 
 ; Compile with xasm (http://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
-; inflate is 499 bytes of code and constants
+; inflate is 492 bytes of code and constants
 ; inflate_data is 764 bytes of uninitialized data
 ; inflate_zp is 10 bytes on page zero
 
@@ -279,7 +279,7 @@ inflateDynamic_getTempCodeLengths
 ; Build Huffman trees basing on code lengths (in bits)
 ; stored in the *SymbolCodeLength arrays
 buildHuffmanTree
-; Clear nBitCode_totalCount, nBitCode_literalCount, nBitCode_controlCount
+; Clear nBitCode_literalCount, nBitCode_controlCount
 	tya
 ;	lda	#0
 	sta:rne	nBitCode_clearFrom,y+
@@ -288,21 +288,19 @@ buildHuffmanTree
 buildHuffmanTree_countCodeLengths
 	ldx	literalSymbolCodeLength,y
 	inc	nBitCode_literalCount,x
-	inc	nBitCode_totalCount,x
 	cpy	#CONTROL_SYMBOLS
 	bcs	buildHuffmanTree_noControlSymbol
 	ldx	controlSymbolCodeLength,y
 	inc	nBitCode_controlCount,x
-	inc	nBitCode_totalCount,x
 buildHuffmanTree_noControlSymbol
 	iny
 	bne	buildHuffmanTree_countCodeLengths
 ; Calculate offsets of symbols sorted by code length
 ;	lda	#0
-	ldx	#-3*TREE_SIZE
+	ldx	#-4*TREE_SIZE
 buildHuffmanTree_calculateOffsets
-	sta	nBitCode_literalOffset+3*TREE_SIZE-$100,x
-	add	nBitCode_literalCount+3*TREE_SIZE-$100,x
+	sta	nBitCode_literalOffset+4*TREE_SIZE-$100,x
+	add	nBitCode_literalCount+4*TREE_SIZE-$100,x
 	inx
 	bne	buildHuffmanTree_calculateOffsets
 ; Put symbols in their place in the sorted array
@@ -337,25 +335,25 @@ fetchCode_nextBit
 	jsr	getBit
 	rol	@
 	inx
-	sub	nBitCode_totalCount,x
+	sub	nBitCode_literalCount,x
+	bcc	fetchCode_literal
+;	sec
+	sbc	nBitCode_controlCount,x
 	bcs	fetchCode_nextBit
 ;	clc
-	adc	nBitCode_controlCount,x
-	bcs	fetchCode_control
+	adc	nBitCode_controlOffset,x
+	tax
+	lda	codeToControlSymbol,x
+	and	#$1f	; make distance symbols zero-based
+	tax
+;	sec
+	rts
+fetchCode_literal
 ;	clc
 	adc	nBitCode_literalOffset,x
 	tax
 	lda	codeToLiteralSymbol,x
 	clc
-	rts
-fetchCode_control
-;	sec
-	adc	nBitCode_controlOffset-1,x
-	tax
-	lda	codeToControlSymbol-1,x
-	and	#$1f	; make distance symbols zero-based
-	tax
-	sec
 	rts
 
 ; Read A minus 1 bits, but no more than 8
@@ -440,14 +438,12 @@ controlSymbolCodeLength
 ; Huffman trees
 
 nBitCode_clearFrom
-nBitCode_totalCount
-	org	*+2*TREE_SIZE
 nBitCode_literalCount
-	org	*+TREE_SIZE
+	org	*+2*TREE_SIZE
 nBitCode_controlCount
 	org	*+2*TREE_SIZE
 nBitCode_literalOffset
-	org	*+TREE_SIZE
+	org	*+2*TREE_SIZE
 nBitCode_controlOffset
 	org	*+2*TREE_SIZE
 
