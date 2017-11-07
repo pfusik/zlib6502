@@ -342,9 +342,8 @@ fetchCode_nextBit
 	beq	fetchCode_allLiterals
 ; is it literal code of length X?
 	sub	nBitCode_literalCount,x
-	bcs	fetchCode_tryControl
+	bcs	fetchCode_notLiteral
 ; literal code
-fetchCode_literal
 ;	clc
 	adc	nBitCode_literalOffset,x
 fetchCode_allLiterals
@@ -358,7 +357,7 @@ fetchCode_ge256
 	sbc	nBitCode_literalCount,x
 	sec
 ; is it control code of length X?
-fetchCode_tryControl
+fetchCode_notLiteral
 ;	sec
 	sbc	nBitCode_controlCount,x
 	bcs	fetchCode_nextBit
