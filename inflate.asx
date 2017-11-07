@@ -1,11 +1,11 @@
 ; inflate - uncompress data stored in the DEFLATE format
 ; by Piotr Fusik <fox@scene.pl>
-; Last modified: 2017-11-06
+; Last modified: 2017-11-07
 
 ; Compile with xasm (http://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
-; inflate is 492 bytes of code and constants
-; inflate_data is 764 bytes of uninitialized data
+; inflate is 508 bytes of code and constants
+; inflate_data is 765 bytes of uninitialized data
 ; inflate_zp is 10 bytes on page zero
 
 
@@ -288,6 +288,7 @@ buildHuffmanTree
 buildHuffmanTree_countCodeLengths
 	ldx	literalSymbolCodeLength,y
 	inc	nBitCode_literalCount,x
+	sne:stx	allLiteralsCodeLength
 	cpy	#CONTROL_SYMBOLS
 	bcs	buildHuffmanTree_noControlSymbol
 	ldx	controlSymbolCodeLength,y
@@ -335,11 +336,33 @@ fetchCode_nextBit
 	jsr	getBit
 	rol	@
 	inx
+	bcs	fetchCode_ge256
+; are all 256 literal codes of this length?
+	cpx	allLiteralsCodeLength
+	beq	fetchCode_allLiterals
+; is it literal code of length X?
 	sub	nBitCode_literalCount,x
-	bcc	fetchCode_literal
+	bcs	fetchCode_tryControl
+; literal code
+fetchCode_literal
+;	clc
+	adc	nBitCode_literalOffset,x
+fetchCode_allLiterals
+	tax
+	lda	codeToLiteralSymbol,x
+	clc
+	rts
+; code >= 256, must be control
+fetchCode_ge256
+;	sec
+	sbc	nBitCode_literalCount,x
+	sec
+; is it control code of length X?
+fetchCode_tryControl
 ;	sec
 	sbc	nBitCode_controlCount,x
 	bcs	fetchCode_nextBit
+; control code
 ;	clc
 	adc	nBitCode_controlOffset,x
 	tax
@@ -347,13 +370,6 @@ fetchCode_nextBit
 	and	#$1f	; make distance symbols zero-based
 	tax
 ;	sec
-	rts
-fetchCode_literal
-;	clc
-	adc	nBitCode_literalOffset,x
-	tax
-	lda	codeToLiteralSymbol,x
-	clc
 	rts
 
 ; Read A minus 1 bits, but no more than 8
@@ -446,6 +462,8 @@ nBitCode_literalOffset
 	org	*+2*TREE_SIZE
 nBitCode_controlOffset
 	org	*+2*TREE_SIZE
+allLiteralsCodeLength
+	org	*+1
 
 codeToLiteralSymbol
 	org	*+256
