@@ -346,9 +346,9 @@ fetchCode_nextBit
 ; literal code
 ;	clc
 	adc	nBitCode_literalOffset,x
-fetchCode_allLiterals
 	tax
 	lda	codeToLiteralSymbol,x
+fetchCode_allLiterals
 	clc
 	rts
 ; code >= 256, must be control
