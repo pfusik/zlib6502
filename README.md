@@ -7,6 +7,8 @@ used in ZIP, gzip, PNG and many other formats.
 In 2000 I wrote a DEFLATE decompression routine (called "inflate")
 in the [6502](http://en.wikipedia.org/wiki/6502) assembly language.
 In 2007 I optimized it so it is about 30% shorter and 10% faster than before.
+In 2017 I fixed bugs causing invalid expansion of some streams.
+These were edge cases, unlikely to encounter unless intentionally triggerred.
 
 Compilation
 -----------
