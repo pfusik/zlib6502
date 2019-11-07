@@ -1,11 +1,11 @@
 6502 inflate routine
 ====================
 
-[DEFLATE](http://en.wikipedia.org/wiki/DEFLATE) is a popular compression format,
+[DEFLATE](https://en.wikipedia.org/wiki/DEFLATE) is a popular compression format,
 used in ZIP, gzip, PNG and many other formats.
 
 In 2000 I wrote a DEFLATE decompression routine (called "inflate")
-in the [6502](http://en.wikipedia.org/wiki/6502) assembly language.
+in the [6502](https://en.wikipedia.org/wiki/6502) assembly language.
 In 2007 I optimized it so it is about 30% shorter and 10% faster than before.
 In 2017 I fixed bugs causing invalid expansion of some streams.
 These were edge cases, unlikely to encounter unless intentionally triggerred.
@@ -76,7 +76,7 @@ I have compiled a [Windows exe](http://pfusik.github.io/zlib6502/zopfli.exe.gz) 
 
 Historically, I have used:
 
-* my programs using the [Deflater](http://docs.oracle.com/javase/8/docs/api/java/util/zip/Deflater.html) Java class
+* my programs using the [Deflater](https://docs.oracle.com/en/java/javase/13/docs/api/java.base/java/util/zip/Deflater.html) Java class
 * my `deflater` program written with the [zlib library](http://www.zlib.net/).
 * my `gzip2deflate` program that extracted the DEFLATE stream from a GZ file created with gzip or [7-Zip](http://7-zip.org/)
 * my `zip2deflate` program that extracted the DEFLATE stream from a ZIP created with [KZIP](http://advsys.net/ken/utils.htm)
