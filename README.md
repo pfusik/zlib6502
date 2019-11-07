@@ -17,7 +17,7 @@ The routine uses three memory areas:
 
 * `inflate` - code and constants (508 bytes)
 * `inflate_data` - uninitialized data (765 bytes)
-* `inflate_zp` - variables on zero page
+* `inflate_zp` - variables on zero page (10 bytes)
 
 You must select these locations at compile time, for example:
 
