@@ -1,0 +1,5 @@
+language: minimal
+install:
+  - wget https://github.com/pfusik/xasm/releases/download/xasm-3.1.1/xasm_3.1.1-1_amd64.deb
+  - sudo dpkg -i xasm_3.1.1-1_amd64.deb
+script: make

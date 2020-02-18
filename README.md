@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/pfusik/zlib6502.svg?branch=master)](https://travis-ci.org/pfusik/zlib6502)
+
 6502 inflate routine
 ====================
 
