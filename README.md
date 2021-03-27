@@ -71,10 +71,12 @@ There are several ways to get DEFLATE compressed data.
 If you are looking for maximum compression, use [Zopfli](https://github.com/google/zopfli).
 For example:
 
-    zopfli --deflate INPUT_FILE
+    zopfli --deflate --i1000 INPUT_FILE
 
 will compress to `INPUT_FILE.deflate`.
 I have compiled a [Windows exe](http://pfusik.github.io/zlib6502/zopfli.exe.gz) for you.
+Increasing the number passed to the `--i` option can improve the compression by a few bytes
+at the cost of increased compression time.
 
 Historically, I have used:
 
