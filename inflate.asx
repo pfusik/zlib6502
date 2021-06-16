@@ -441,7 +441,7 @@ inflateDynamic_headerBits
 inflateDynamic_headerBase
 	dta	3,LENGTH_SYMBOLS,0
 
-	org inflate_data
+	org	inflate_data
 
 ; Data for building trees
 
