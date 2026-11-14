@@ -1,10 +1,10 @@
 ; inflate - uncompress data stored in the DEFLATE format
 ; by Piotr Fusik <fox@scene.pl>
-; Last modified: 2017-11-07
+; Last modified: 2026-11-14
 
 ; Compile with xasm (http://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
-; inflate is 508 bytes of code and constants
+; inflate is 504 bytes of code and constants
 ; inflate_data is 765 bytes of uninitialized data
 ; inflate_zp is 10 bytes on page zero
 
@@ -119,8 +119,10 @@ inflateCompressed_setLiteralCodeLength
 	cpy	#24
 	adc	#2-DISTANCE_TREE
 inflateCompressed_setControlCodeLength
-	cpy	#CONTROL_SYMBOLS
-	scs:sta	controlSymbolCodeLength,y
+; for Y>=CONTROL_SYMBOLS this writes past controlSymbolCodeLength,
+; but only to the 194 bytes of inflate_data that follow it
+; and they are all initialized in buildHuffmanTree before use
+	sta	controlSymbolCodeLength,y
 	iny
 	bne	inflateCompressed_setCodeLengths
 

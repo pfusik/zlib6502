@@ -19,7 +19,7 @@ Use [xasm](https://github.com/pfusik/xasm).
 
 The routine uses three memory areas:
 
-* `inflate` - code and constants (508 bytes)
+* `inflate` - code and constants (504 bytes)
 * `inflate_data` - uninitialized data (765 bytes)
 * `inflate_zp` - variables on zero page (10 bytes)
 
@@ -99,7 +99,7 @@ License
 
 This code is licensed under the standard zlib license.
 
-Copyright (C) 2000-2017 Piotr Fusik
+Copyright (C) 2000-2026 Piotr Fusik
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
