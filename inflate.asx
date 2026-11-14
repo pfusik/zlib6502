@@ -2,7 +2,7 @@
 ; by Piotr Fusik <fox@scene.pl>
 ; Last modified: 2026-11-14
 
-; Compile with xasm (http://xasm.atari.org/), for example:
+; Compile with xasm (https://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
 ; inflate is 499 bytes of code and constants
 ; inflate_data is 765 bytes of uninitialized data

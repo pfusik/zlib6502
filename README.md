@@ -72,16 +72,16 @@ For example:
     zopfli --deflate --i1000 INPUT_FILE
 
 will compress to `INPUT_FILE.deflate`.
-I have compiled a [Windows exe](http://pfusik.github.io/zlib6502/zopfli.exe.gz) for you.
+I have compiled a [Windows exe](https://pfusik.github.io/zlib6502/zopfli.exe.gz) for you.
 Increasing the number passed to the `--i` option can improve the compression by a few bytes
 at the cost of increased compression time.
 
 Historically, I have used:
 
 * my programs using the [Deflater](https://docs.oracle.com/en/java/javase/13/docs/api/java.base/java/util/zip/Deflater.html) Java class
-* my `deflater` program written with the [zlib library](http://www.zlib.net/).
-* my `gzip2deflate` program that extracted the DEFLATE stream from a GZ file created with gzip or [7-Zip](http://7-zip.org/)
-* my `zip2deflate` program that extracted the DEFLATE stream from a ZIP created with [KZIP](http://advsys.net/ken/utils.htm)
+* my `deflater` program written with the [zlib library](https://www.zlib.net/).
+* my `gzip2deflate` program that extracted the DEFLATE stream from a GZ file created with gzip or [7-Zip](https://7-zip.org/)
+* my `zip2deflate` program that extracted the DEFLATE stream from a ZIP created with [KZIP](https://advsys.net/ken/utils.htm)
 
 zlib?
 -----
