@@ -4,7 +4,7 @@
 
 ; Compile with xasm (http://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
-; inflate is 500 bytes of code and constants
+; inflate is 499 bytes of code and constants
 ; inflate_data is 765 bytes of uninitialized data
 ; inflate_zp is 10 bytes on page zero
 
@@ -215,10 +215,8 @@ inflateCodes_loop
 	sty	getBits_base
 	cmp	#9
 	bcc	inflateCodes_setSequenceLength
-	tya
-;	lda	#0
-	cpx	#1+28
-	bcs	inflateCodes_setSequenceLength
+	eor	#1+28
+	beq	inflateCodes_setSequenceLength
 	dex
 	txa
 	lsr	@
