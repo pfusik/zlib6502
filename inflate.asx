@@ -4,7 +4,7 @@
 
 ; Compile with xasm (http://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
-; inflate is 504 bytes of code and constants
+; inflate is 500 bytes of code and constants
 ; inflate_data is 765 bytes of uninitialized data
 ; inflate_zp is 10 bytes on page zero
 
@@ -52,6 +52,10 @@ LENGTH_SYMBOLS                  equ	1+29+2
 DISTANCE_SYMBOLS                equ	30
 CONTROL_SYMBOLS                 equ	LENGTH_SYMBOLS+DISTANCE_SYMBOLS
 
+; In the fixed Huffman codes, the first 9-bit literal is 144
+; and the first 8-bit control symbol is 24
+FIXED_CONTROL_DELAY             equ	144-24
+
 
 ; Uncompress DEFLATE stream starting from the address stored in inputPointer
 ; to the memory starting from the address stored in outputPointer
@@ -93,41 +97,48 @@ inflateCompressed
 ; A=1: fixed block, initialize with fixed codes
 ; A=2: dynamic block, start by clearing all code lengths
 ; A=3: invalid compressed data, not handled in this routine
-	eor	#2
+	lsr	@
+; C=1: fixed block
+; C=0: dynamic block
+	tya
+;	lda	#0
 
 ;	ldy	#0
 inflateCompressed_setCodeLengths
-	tax
-	beq	inflateCompressed_setLiteralCodeLength
+	bcc	inflateCompressed_setLiteralCodeLength
 ; fixed Huffman literal codes:
 ; :144 dta 8
 ; :112 dta 9
-	lda	#4
+	lda	#$84
 	cpy	#144
 	rol	@
+;	sec
 inflateCompressed_setLiteralCodeLength
 	sta	literalSymbolCodeLength,y
-	beq	inflateCompressed_setControlCodeLength
+	bcc	inflateCompressed_setControlCodeLength
 ; fixed Huffman control codes:
 ; :24  dta 7
 ; :6   dta 8
 ; :2   dta 8 ; meaningless codes
 ; :30  dta 5+DISTANCE_TREE
-	lda	#5+DISTANCE_TREE
-	cpy	#LENGTH_SYMBOLS
-	bcs	inflateCompressed_setControlCodeLength
-	cpy	#24
-	adc	#2-DISTANCE_TREE
+; The code length of control symbol N is set when Y=N+FIXED_CONTROL_DELAY,
+; so it is one less than the literal code length just set,
+; except for the distance symbols.
+	cpy	#LENGTH_SYMBOLS+FIXED_CONTROL_DELAY
+	scc:lda	#5+DISTANCE_TREE
+	sbc	#0
+;	sec
 inflateCompressed_setControlCodeLength
-; for Y>=CONTROL_SYMBOLS this writes past controlSymbolCodeLength,
-; but only to the 194 bytes of inflate_data that follow it
-; and they are all initialized in buildHuffmanTree before use
-	sta	controlSymbolCodeLength,y
+; For Y<FIXED_CONTROL_DELAY this writes to literalSymbolCodeLength
+; elements that are set later in this loop.
+; For Y>=CONTROL_SYMBOLS+FIXED_CONTROL_DELAY this writes past
+; controlSymbolCodeLength, but only to the first 74 bytes of inflate_data
+; that follow it and they are all initialized in buildHuffmanTree before use.
+	sta	controlSymbolCodeLength-FIXED_CONTROL_DELAY,y
 	iny
 	bne	inflateCompressed_setCodeLengths
 
-	tax
-	bne	inflateCodes
+	bcs	inflateCodes
 
 ; Decompress a block reading Huffman trees first
 
