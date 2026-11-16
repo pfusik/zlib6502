@@ -8,7 +8,7 @@ In 2000 I wrote a DEFLATE decompression routine (called "inflate")
 in the [6502](https://en.wikipedia.org/wiki/6502) assembly language.
 In 2007 I optimized it so it is about 30% shorter and 10% faster than before.
 In 2017 I fixed bugs causing invalid expansion of some streams.
-These were edge cases, unlikely to encounter unless intentionally triggerred.
+These were edge cases, unlikely to be encountered unless intentionally triggered.
 
 Compilation
 -----------
@@ -25,13 +25,13 @@ You must select these locations at compile time, for example:
 
     xasm -d inflate=$b700 -d inflate_data=$b900 -d inflate_zp=$f0 inflate.asx
 
-(escape the dollars if in Unix shell or Makefile).
+(escape the dollars if in a Unix shell or a Makefile).
 
 Usage
 -----
 
 The `inflate` routine assumes that the compressed and the uncompressed data
-fit in the memory. Before calling `inflate`, set the locations
+fit in memory. Before calling `inflate`, set the locations
 of the compressed and the uncompressed data in the zero-page variables:
 
     mwa #compressedData inflate_zp
@@ -40,8 +40,8 @@ of the compressed and the uncompressed data in the zero-page variables:
 
 As the compressed data is read sequentially and only once, it is possible
 to overlap the compressed and uncompressed data. That is, the data being
-uncompressed can be stored in place of some compressed data which has been
-already read.
+uncompressed can be stored in place of some compressed data which has
+already been read.
 
 It is also possible to get the compressed data from any forward-only stream.
 In this case, modify the `getBit` routine to use your `readByte`:
@@ -64,7 +64,7 @@ In this case, modify the `getBit` routine to use your `readByte`:
 Compression
 -----------
 
-There are several ways to get DEFLATE compressed data.
+There are several ways to get DEFLATE-compressed data.
 
 If you are looking for maximum compression, use [Zopfli](https://github.com/google/zopfli).
 For example:
@@ -79,7 +79,7 @@ at the cost of increased compression time.
 Historically, I have used:
 
 * my programs using the [Deflater](https://docs.oracle.com/en/java/javase/13/docs/api/java.base/java/util/zip/Deflater.html) Java class
-* my `deflater` program written with the [zlib library](https://www.zlib.net/).
+* my `deflater` program written with the [zlib library](https://www.zlib.net/)
 * my `gzip2deflate` program that extracted the DEFLATE stream from a GZ file created with gzip or [7-Zip](https://7-zip.org/)
 * my `zip2deflate` program that extracted the DEFLATE stream from a ZIP created with [KZIP](https://advsys.net/ken/utils.htm)
 

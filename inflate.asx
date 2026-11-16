@@ -1,6 +1,6 @@
 ; inflate - uncompress data stored in the DEFLATE format
 ; by Piotr Fusik <fox@scene.pl>
-; Last modified: 2026-11-14
+; Last modified: 2026-11-16
 
 ; Compile with xasm (https://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
@@ -57,7 +57,7 @@ CONTROL_SYMBOLS                 equ	LENGTH_SYMBOLS+DISTANCE_SYMBOLS
 FIXED_CONTROL_DELAY             equ	144-24
 
 
-; Uncompress DEFLATE stream starting from the address stored in inputPointer
+; Uncompress the DEFLATE stream starting from the address stored in inputPointer
 ; to the memory starting from the address stored in outputPointer
 	org	inflate
 	mvy	#0	getBit_buffer
@@ -132,15 +132,15 @@ inflateCompressed_setControlCodeLength
 ; For Y<FIXED_CONTROL_DELAY this writes to literalSymbolCodeLength
 ; elements that are set later in this loop.
 ; For Y>=CONTROL_SYMBOLS+FIXED_CONTROL_DELAY this writes past
-; controlSymbolCodeLength, but only to the first 74 bytes of inflate_data
-; that follow it and they are all initialized in buildHuffmanTree before use.
+; controlSymbolCodeLength, but only to the 74 bytes of inflate_data
+; that follow it, which are all initialized in buildHuffmanTree before use.
 	sta	controlSymbolCodeLength-FIXED_CONTROL_DELAY,y
 	iny
 	bne	inflateCompressed_setCodeLengths
 
 	bcs	inflateCodes
 
-; Decompress a block reading Huffman trees first
+; Decompress a block, reading Huffman trees first
 
 ; Build the tree for temporary codes
 	jsr	buildTempHuffmanTree
@@ -210,7 +210,7 @@ inflateCodes_loop
 	jsr	fetchPrimaryCode
 	bcc	inflateCodes_literal
 	beq	inflate_nextBlock
-; Copy sequence from look-behind buffer
+; Copy a sequence from the look-behind buffer
 ;	ldy	#0
 	sty	getBits_base
 	cmp	#9
@@ -287,7 +287,7 @@ inflateDynamic_getTempCodeLengths
 	cpx	inflateDynamic_tempCodes
 	bcc	inflateDynamic_getTempCodeLengths
 
-; Build Huffman trees basing on code lengths (in bits)
+; Build Huffman trees based on code lengths (in bits)
 ; stored in the *SymbolCodeLength arrays
 buildHuffmanTree
 ; Clear nBitCode_literalCount, nBitCode_controlCount
@@ -351,7 +351,7 @@ fetchCode_nextBit
 ; are all 256 literal codes of this length?
 	cpx	allLiteralsCodeLength
 	beq	fetchCode_allLiterals
-; is it literal code of length X?
+; is it a literal code of length X?
 	sub	nBitCode_literalCount,x
 	bcs	fetchCode_notLiteral
 ; literal code
@@ -367,7 +367,7 @@ fetchCode_ge256
 ;	sec
 	sbc	nBitCode_literalCount,x
 	sec
-; is it control code of length X?
+; is it a control code of length X?
 fetchCode_notLiteral
 ;	sec
 	sbc	nBitCode_controlCount,x
