@@ -231,7 +231,6 @@ inflateCodes_setSequenceLength
 	sta	inflateCodes_lengthMinus2
 	ldx	#DISTANCE_TREE
 	jsr	fetchCode
-;	sec
 	inc	getBits_base
 	cmp	#4
 ; C=0, getBits_base=1 has the same effect below as C=1, getBits_base=0
