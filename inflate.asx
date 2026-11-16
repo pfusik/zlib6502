@@ -4,7 +4,7 @@
 
 ; Compile with xasm (https://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
-; inflate is 499 bytes of code and constants
+; inflate is 498 bytes of code and constants
 ; inflate_data is 765 bytes of uninitialized data
 ; inflate_zp is 10 bytes on page zero
 
@@ -231,24 +231,29 @@ inflateCodes_setSequenceLength
 	sta	inflateCodes_lengthMinus2
 	ldx	#DISTANCE_TREE
 	jsr	fetchCode
-	cmp	#4
-	bcc	inflateCodes_setOffsetLowByte
+;	sec
 	inc	getBits_base
+	cmp	#4
+; C=0, getBits_base=1 has the same effect below as C=1, getBits_base=0
+	bcc	inflateCodes_setOffsetLowByte
 	lsr	@
 	jsr	getAMinus1BitsMax8
+;	sec
 inflateCodes_setOffsetLowByte
 	eor	#$ff
 	sta	inflateCodes_sourcePointer
-	lda	getBits_base
-	cpx	#10
-	bcc	inflateCodes_setOffsetHighByte
+; X>=10: get X-9 more bits
+; X<10: this loads one of the last ten bytes of inflateDynamic_tempSymbols
 	lda	getNPlus1Bits_mask-10,x
+	bpl	inflateCodes_setOffsetHighByte
 	jsr	getBits
-	clc
+;	jmp	inflateCodes_subtractOffsetHighByte
+	bcs	inflateCodes_subtractOffsetHighByte
 inflateCodes_setOffsetHighByte
+	lda	getBits_base
+inflateCodes_subtractOffsetHighByte
+	sbc	outputPointer+1
 	eor	#$ff
-;	clc
-	adc	outputPointer+1
 	sta	inflateCodes_sourcePointer+1
 	jsr	copyByte
 	jsr	copyByte
@@ -441,11 +446,13 @@ storeByte
 storeByte_return
 	rts
 
-getNPlus1Bits_mask
-	dta	GET_1_BIT,GET_2_BITS,GET_3_BITS,GET_4_BITS,GET_5_BITS,GET_6_BITS,GET_7_BITS
-
 inflateDynamic_tempSymbols
 	dta	GET_2_BITS,GET_3_BITS,GET_7_BITS,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15
+
+; Must directly follow inflateDynamic_tempSymbols,
+; see inflateCodes_setOffsetLowByte
+getNPlus1Bits_mask
+	dta	GET_1_BIT,GET_2_BITS,GET_3_BITS,GET_4_BITS,GET_5_BITS,GET_6_BITS,GET_7_BITS
 
 inflateDynamic_headerBits
 	dta	GET_4_BITS,GET_5_BITS,GET_5_BITS
