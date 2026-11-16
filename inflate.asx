@@ -4,7 +4,7 @@
 
 ; Compile with xasm (https://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
-; inflate is 499 bytes of code and constants
+; inflate is 498 bytes of code and constants
 ; inflate_data is 765 bytes of uninitialized data
 ; inflate_zp is 10 bytes on page zero
 
@@ -305,14 +305,21 @@ buildHuffmanTree_countCodeLengths
 	ldx	controlSymbolCodeLength,y
 	inc	nBitCode_controlCount,x
 buildHuffmanTree_noControlSymbol
-	iny
+; Counting down so that the last "cpy #CONTROL_SYMBOLS" clears C
+	dey
 	bne	buildHuffmanTree_countCodeLengths
 ; Calculate offsets of symbols sorted by code length
+; The 256 literals overflow the sum, incrementing offsets of control symbols.
+; This is compensated for by accessing codeToControlSymbol-1.
+; If all literals have the same code length, there is no overflow.
+; The first control symbol is then stored in the last byte
+; of codeToLiteralSymbol, but both these bytes are unused in this case.
 ;	lda	#0
+;	clc
 	ldx	#-4*TREE_SIZE
 buildHuffmanTree_calculateOffsets
 	sta	nBitCode_literalOffset+4*TREE_SIZE-$100,x
-	add	nBitCode_literalCount+4*TREE_SIZE-$100,x
+	adc	nBitCode_literalCount+4*TREE_SIZE-$100,x
 	inx
 	bne	buildHuffmanTree_calculateOffsets
 ; Put symbols in their place in the sorted array
@@ -327,7 +334,7 @@ buildHuffmanTree_assignCode
 	bcs	buildHuffmanTree_noControlSymbol2
 	ldx	controlSymbolCodeLength,y
 	ldy:inc	nBitCode_controlOffset,x
-	sta	codeToControlSymbol,y
+	sta	codeToControlSymbol-1,y
 	tay
 buildHuffmanTree_noControlSymbol2
 	iny
@@ -376,7 +383,7 @@ fetchCode_notLiteral
 ;	clc
 	adc	nBitCode_controlOffset,x
 	tax
-	lda	codeToControlSymbol,x
+	lda	codeToControlSymbol-1,x
 	and	#$1f	; make distance symbols zero-based
 	tax
 ;	sec
