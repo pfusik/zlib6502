@@ -17,8 +17,8 @@ Use [xasm](https://github.com/pfusik/xasm).
 
 The routine uses three memory areas:
 
-* `inflate` - code and constants (499 bytes)
-* `inflate_data` - uninitialized data (765 bytes)
+* `inflate` - code and constants (494 bytes)
+* `inflate_data` - uninitialized data (1153 bytes)
 * `inflate_zp` - variables on zero page (10 bytes)
 
 You must select these locations at compile time, for example:

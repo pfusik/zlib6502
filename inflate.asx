@@ -4,8 +4,8 @@
 
 ; Compile with xasm (https://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
-; inflate is 499 bytes of code and constants
-; inflate_data is 765 bytes of uninitialized data
+; inflate is 494 bytes of code and constants
+; inflate_data is 1153 bytes of uninitialized data
 ; inflate_zp is 10 bytes on page zero
 
 
@@ -50,11 +50,9 @@ DISTANCE_TREE                   equ	TREE_SIZE
 ; Alphabet
 LENGTH_SYMBOLS                  equ	1+29+2
 DISTANCE_SYMBOLS                equ	30
-CONTROL_SYMBOLS                 equ	LENGTH_SYMBOLS+DISTANCE_SYMBOLS
-
-; In the fixed Huffman codes, the first 9-bit literal is 144
-; and the first 8-bit control symbol is 24
-FIXED_CONTROL_DELAY             equ	144-24
+; The tables are padded to 256 elements with unused symbols
+; so that literal and control symbols can be processed in the same loops
+CONTROL_SYMBOLS                 equ	256
 
 
 ; Uncompress DEFLATE stream starting from the address stored in inputPointer
@@ -121,20 +119,15 @@ inflateCompressed_setLiteralCodeLength
 ; :6   dta 8
 ; :2   dta 8 ; meaningless codes
 ; :30  dta 5+DISTANCE_TREE
-; The code length of control symbol N is set when Y=N+FIXED_CONTROL_DELAY,
-; so it is one less than the literal code length just set,
-; except for the distance symbols.
-	cpy	#LENGTH_SYMBOLS+FIXED_CONTROL_DELAY
-	scc:lda	#5+DISTANCE_TREE
-	sbc	#0
+; :194 dta 5+DISTANCE_TREE ; unused symbols, their codes follow the 30 above
+	lda	#5+DISTANCE_TREE
+	cpy	#LENGTH_SYMBOLS
+	bcs	inflateCompressed_setControlCodeLength
+	cpy	#24
+	adc	#2-DISTANCE_TREE
 ;	sec
 inflateCompressed_setControlCodeLength
-; For Y<FIXED_CONTROL_DELAY this writes to literalSymbolCodeLength
-; elements that are set later in this loop.
-; For Y>=CONTROL_SYMBOLS+FIXED_CONTROL_DELAY this writes past
-; controlSymbolCodeLength, but only to the first 74 bytes of inflate_data
-; that follow it and they are all initialized in buildHuffmanTree before use.
-	sta	controlSymbolCodeLength-FIXED_CONTROL_DELAY,y
+	sta	controlSymbolCodeLength,y
 	iny
 	bne	inflateCompressed_setCodeLengths
 
@@ -147,7 +140,7 @@ inflateCompressed_setControlCodeLength
 
 ; Use temporary codes to get lengths of literal/length and distance codes
 ;	ldx	#0
-;	sec
+	sec
 inflateDynamic_decodeLength
 ; C=1: literal codes
 ; C=0: control codes
@@ -300,11 +293,8 @@ buildHuffmanTree_countCodeLengths
 	ldx	literalSymbolCodeLength,y
 	inc	nBitCode_literalCount,x
 	sne:stx	allLiteralsCodeLength
-	cpy	#CONTROL_SYMBOLS
-	bcs	buildHuffmanTree_noControlSymbol
 	ldx	controlSymbolCodeLength,y
 	inc	nBitCode_controlCount,x
-buildHuffmanTree_noControlSymbol
 	iny
 	bne	buildHuffmanTree_countCodeLengths
 ; Calculate offsets of symbols sorted by code length
@@ -323,13 +313,10 @@ buildHuffmanTree_assignCode
 	ldy:inc	nBitCode_literalOffset,x
 	sta	codeToLiteralSymbol,y
 	tay
-	cpy	#CONTROL_SYMBOLS
-	bcs	buildHuffmanTree_noControlSymbol2
 	ldx	controlSymbolCodeLength,y
 	ldy:inc	nBitCode_controlOffset,x
 	sta	codeToControlSymbol,y
 	tay
-buildHuffmanTree_noControlSymbol2
 	iny
 	bne	buildHuffmanTree_assignCode
 	rts
