@@ -4,7 +4,7 @@
 
 ; Compile with xasm (https://xasm.atari.org/), for example:
 ; xasm inflate.asx /l /d:inflate=$b700 /d:inflate_data=$b900 /d:inflate_zp=$f0
-; inflate is 498 bytes of code and constants
+; inflate is 497 bytes of code and constants
 ; inflate_data is 765 bytes of uninitialized data
 ; inflate_zp is 10 bytes on page zero
 
@@ -247,11 +247,10 @@ inflateCodes_setOffsetLowByte
 	lda	getNPlus1Bits_mask-10,x
 	bpl	inflateCodes_setOffsetHighByte
 	jsr	getBits
-;	jmp	inflateCodes_subtractOffsetHighByte
-	bcs	inflateCodes_subtractOffsetHighByte
+; Skip "lda getBits_base". This reads the byte at getBits_base*256+$a5.
+	dta	{bit a:}
 inflateCodes_setOffsetHighByte
 	lda	getBits_base
-inflateCodes_subtractOffsetHighByte
 	sbc	outputPointer+1
 	eor	#$ff
 	sta	inflateCodes_sourcePointer+1
