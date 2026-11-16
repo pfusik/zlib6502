@@ -9,6 +9,7 @@ in the [6502](https://en.wikipedia.org/wiki/6502) assembly language.
 In 2007 I optimized it so it is about 30% shorter and 10% faster than before.
 In 2017 I fixed bugs causing invalid expansion of some streams.
 These were edge cases, unlikely to be encountered unless intentionally triggered.
+In 2026 I let Claude Fable 5.2 optimize it by 9 bytes.
 
 Compilation
 -----------
